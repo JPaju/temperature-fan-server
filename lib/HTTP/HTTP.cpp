@@ -6,14 +6,19 @@
 #define HTTP_DELETE F("DELETE")
 
 #define HTTP_OK F("HTTP/1.1 200 OK \r\nContent-Type: application/json \r\nConnection: Closed\r\n")
+#define HTTP_CREATED F("HTTP/1.1 201 Created \r\nContent-Type: application/json \r\nConnection: Closed\r\n")
 #define HTTP_NO_CONTENT F("HTTP/1.1 204 No Content \r\nConnection: Closed\r\n")
 #define HTTP_BAD_REQUEST F("HTTP/1.1 400 Bad Request \r\nContent-Type: application/json \r\nConnection: Closed \r\n\r\n{ \"error\" : \"Missing or invalid Parameters\" }\r\n")
 #define HTTP_NOT_FOUND F("HTTP/1.1 404 Not Found\r\n Content-Type: text/html \r\nConnection: Closed \r\n\r\n{ \"error\" : \"Path not found\" }\r\n")
+
 
 void HTTP::sendHttpResponse(EthernetClient& client, HTTPResponseType type) {
 	switch (type) {
 		case HTTPResponseType::HTTP_200_OK:
 			client.println(HTTP_OK);
+			break;
+		case HTTPResponseType::HTTP_201_CREATED:
+			client.println(HTTP_CREATED);
 			break;
 		case HTTPResponseType::HTTP_204_NO_CONTENT:
 			client.println(HTTP_NO_CONTENT);
