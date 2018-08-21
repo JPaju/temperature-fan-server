@@ -5,7 +5,6 @@
 #define UPDATE_TEMPS_PATH F("updatetemps")
 #define UPDATE_SENSORS_PATH F("updatesensors")
 
-#define DATA_ATTRIBUTE F("data")
 #define ID_ATTRIBUTE F("id")
 #define TEMPERATURE_ATTRIBUTE F("temperature")
 
@@ -45,7 +44,8 @@ void TemperatureServer::getTemperatures(EthernetClient& client)
 	updateTemperatures();
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
-	JsonArray& tempSensors = root.createNestedArray(DATA_ATTRIBUTE);
+	JsonObject& data = root.createNestedObject(F("data"));
+	JsonArray& tempSensors = data.createNestedArray(F("tempsensors"));
 
 	for (int i=0; i<sensors.getDeviceCount(); i++) {
 		JsonObject& tempSensor = tempSensors.createNestedObject();
@@ -55,7 +55,7 @@ void TemperatureServer::getTemperatures(EthernetClient& client)
 		tempSensor[TEMPERATURE_ATTRIBUTE] = getTemperature(i);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
-	root.prettyPrintTo(client);
+	root.printTo(client);
 }
 
 void TemperatureServer::updateTemperatures()
