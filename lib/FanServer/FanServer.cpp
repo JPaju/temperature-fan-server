@@ -8,7 +8,7 @@
 #define FREQUENCY_PARAMETER F("frequency")
 #define DUTYCYCLE_PARAMETER F("dutycycle")
 #define FANS_ATTRIBUTE F("fans")
-#define ALLOWED_PIN_ATTRIBUTE F("allowedpins")
+#define free_PIN_ATTRIBUTE F("freepins")
 
 
 FanServer::FanServer()
@@ -37,7 +37,7 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 	} else if (method == HTTPMethod::DELETE && path.length() == 0) {
 		return removeFan(client, request);
 	} else if (method == HTTPMethod::GET && path.length() == 0) {
-		return getFans(client);
+		return sendFansJson(client);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
 }
@@ -48,10 +48,15 @@ void FanServer::addFan(EthernetClient& client, const String& request)
 	int frequency = HTTP::parseRequestParameterIntValue(request, FREQUENCY_PARAMETER);
 	int dutyCycle = HTTP::parseRequestParameterIntValue(request, DUTYCYCLE_PARAMETER);
 
-	if (isAllowedPin(pin) && addFan(pin)) {
+	if (addFan(pin)) {
 		setFrequency(pin, frequency);
 		setDutyCycle(pin, dutyCycle);
-		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_204_NO_CONTENT);
+		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_201_CREATED);
+		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+		JsonObject& root = jsonBuffer.createObject();
+		JsonArray& data = root.createNestedArray(F("data"));
+		getFanJson((*(findFan(pin))), data.createNestedObject());
+		root.printTo(client);
 	} else {
 		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 	}
@@ -66,25 +71,25 @@ void FanServer::removeFan(EthernetClient& client, const String& request)
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 }
 
-void FanServer::getFans(EthernetClient &client)
+void FanServer::sendFansJson(EthernetClient &client)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
+	JsonObject& data = root.createNestedObject((F("data")));
+	JsonArray& freePins = data.createNestedArray(free_PIN_ATTRIBUTE);
+	JsonArray& fans = data.createNestedArray(FANS_ATTRIBUTE);
 
-	JsonArray& allowedPins = root.createNestedArray(ALLOWED_PIN_ATTRIBUTE);
-	for (int i=0; i<MAX_FAN_COUNT; i++) {
-		allowedPins.add(_allowedFanPins[i]);
+	for (int allowedPin : _allowedFanPins) {
+		if (isfreePin(allowedPin)) {
+			freePins.add(allowedPin);
+		}
 	}
 
-	JsonArray& fans = root.createNestedArray(FANS_ATTRIBUTE);
 	for (int i=0; i<_fanCount; i++) {
-		JsonObject& fan = fans.createNestedObject();
-		fan[PIN_PARAMETER] = _fans[i].getPin();
-		fan[FREQUENCY_PARAMETER] = _fans[i].getFrequency();
-		fan[FREQUENCY_PARAMETER] = _fans[i].getDutycycle();
+		getFanJson(_fans[i], fans.createNestedObject());
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
-	root.prettyPrintTo(client);
+	root.printTo(client);
 }
 
 void FanServer::setFrequency(EthernetClient& client, const String& request)
@@ -127,20 +132,32 @@ Fan* FanServer::findFan(int pin)
 	return nullptr;
 }
 
-bool FanServer::isAllowedPin(int pin)
+bool FanServer::isfreePin(int pin)
 {
-	for (int i=0; i<MAX_FAN_COUNT; i++) {
-		if (_allowedFanPins[i] == pin) return true;
+	for (int allowedPin : _allowedFanPins) {
+		if (pin == allowedPin) {
+			for (int i=0; i<_fanCount; i++) {
+				if (_fans[i].getPin() == pin) return false;
+			}
+			return true;
+		}
 	}
 	return false;
 }
 
+void FanServer::getFanJson(Fan& fan, JsonObject &fanObject)
+{
+	fanObject[PIN_PARAMETER] = fan.getPin();
+	fanObject[FREQUENCY_PARAMETER] = fan.getFrequency();
+	fanObject[DUTYCYCLE_PARAMETER] = fan.getDutycycle();
+}
+
 bool FanServer::addFan(int pin, int frequency, int dutyCycle)
 {
-	if (_fanCount < MAX_FAN_COUNT && isAllowedPin(pin) && SetPinFrequencySafe(pin, frequency)) {
+	if (_fanCount < MAX_FAN_COUNT && isfreePin(pin) && SetPinFrequencySafe(pin, frequency)) {
 		_fans[_fanCount] = Fan(pin, frequency, dutyCycle);
 		_fans[_fanCount].init();
-		if (findFan(pin) == 0) _fanCount++;
+		_fanCount++;
 		return true;
 	}
 	return false;
