@@ -9,6 +9,7 @@
 #define DUTYCYCLE_PARAMETER F("dutycycle")
 #define FANS_ATTRIBUTE F("fans")
 #define FREE_PIN_ATTRIBUTE F("freepins")
+#define DEFAULTS_PARAMETER F("defaults")
 
 
 FanServer::FanServer()
@@ -45,6 +46,7 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 	} else if (method == HTTPMethod::GET) {
 		if (path.length() == 0) return sendFansJson(client);
 		if (request.indexOf(FREE_PIN_ATTRIBUTE) != -1) return sendFreePinsJson(client);
+		if (request.indexOf(DEFAULTS_PARAMETER) != -1) return sendDefaultsJson(client);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
 }
@@ -130,6 +132,27 @@ void FanServer::sendFreePinsJson(EthernetClient &client)
 			freePins.add(allowedPin);
 		}
 	}
+
+	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
+	root.printTo(client);
+}
+
+/**
+	Sends default, minimum and maximum values for fans in JSON format to the client.
+
+	@param client: Client to which the response is sent
+*/
+void FanServer::sendDefaultsJson(EthernetClient &client)
+{
+	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+	JsonObject& root = jsonBuffer.createObject();
+	JsonObject& data = root.createNestedObject((F("data")));
+	JsonObject& defaults = data.createNestedObject(DEFAULTS_PARAMETER);
+	defaults[F("dutycycle")] = DEFAULT_DUTYCYCLE;
+	defaults[F("frecuency")] = DEFAULT_FREQUENCY;
+	defaults[F("min dutycycle")] = MIN_DUTYCYCLE;
+	defaults[F("min frequency")] = MIN_FREQUENCY;
+	defaults[F("max frequency")] = MAX_FREQUENCY;
 
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
 	root.printTo(client);
