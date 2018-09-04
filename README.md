@@ -109,7 +109,17 @@ Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
 
 - `200 OK`
 ```json
-
+{
+    "data": {
+        "defaults": {
+            "dutycycle": 15,
+            "frecuency": 25000,
+            "min dutycycle": 15,
+            "min frequency": 20,
+            "max frequency": 32767
+        }
+    }
+}
 ```
 
 ### Add new fans
