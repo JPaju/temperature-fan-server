@@ -8,7 +8,7 @@
 #define FREQUENCY_PARAMETER F("frequency")
 #define DUTYCYCLE_PARAMETER F("dutycycle")
 #define FANS_ATTRIBUTE F("fans")
-#define free_PIN_ATTRIBUTE F("freepins")
+#define FREE_PIN_ATTRIBUTE F("freepins")
 
 
 FanServer::FanServer()
@@ -30,14 +30,15 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 	HTTPMethod method = HTTP::getRequestMethod(request);
 
 	if (method == HTTPMethod::PUT) {
-		if (request.indexOf(DUTYCYCLE_PARAMETER) != -1) return setDutyCycle(client, request);
 		if (request.indexOf(FREQUENCY_PARAMETER) != -1) return setFrequency(client, request);
+		if (request.indexOf(DUTYCYCLE_PARAMETER) != -1) return setDutyCycle(client, request);
 	} else if (method == HTTPMethod::POST && path.length() == 0) {
 		return addFan(client, request);
 	} else if (method == HTTPMethod::DELETE && path.length() == 0) {
 		return removeFan(client, request);
-	} else if (method == HTTPMethod::GET && path.length() == 0) {
-		return sendFansJson(client);
+	} else if (method == HTTPMethod::GET) {
+		if (path.length() == 0) return sendFansJson(client);
+		if (request.indexOf(FREE_PIN_ATTRIBUTE) != -1) return sendFreePinsJson(client);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
 }
@@ -76,8 +77,21 @@ void FanServer::sendFansJson(EthernetClient &client)
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
 	JsonObject& data = root.createNestedObject((F("data")));
-	JsonArray& freePins = data.createNestedArray(free_PIN_ATTRIBUTE);
 	JsonArray& fans = data.createNestedArray(FANS_ATTRIBUTE);
+
+	for (int i=0; i<_fanCount; i++) {
+		getFanJson(_fans[i], fans.createNestedObject());
+	}
+	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
+	root.printTo(client);
+}
+
+void FanServer::sendFreePinsJson(EthernetClient &client)
+{
+	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+	JsonObject& root = jsonBuffer.createObject();
+	JsonObject& data = root.createNestedObject((F("data")));
+	JsonArray& freePins = data.createNestedArray(FREE_PIN_ATTRIBUTE);
 
 	for (int allowedPin : _allowedFanPins) {
 		if (isfreePin(allowedPin)) {
@@ -85,9 +99,6 @@ void FanServer::sendFansJson(EthernetClient &client)
 		}
 	}
 
-	for (int i=0; i<_fanCount; i++) {
-		getFanJson(_fans[i], fans.createNestedObject());
-	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
 	root.printTo(client);
 }
