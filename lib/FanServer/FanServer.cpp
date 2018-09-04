@@ -24,6 +24,12 @@ FanServer::~FanServer()
 	}
 }
 
+/**
+	Handles HTTP-request. If does not recognize request path and/or method, sends 404 Not found.
+
+	@param request: First line of a HTTP-request
+	@param client: Client to which the response is sent
+*/
 void FanServer::handleRequest(const String& request, EthernetClient& client)
 {
 	String path = HTTP::parseRequestPath(request, 2);
@@ -43,6 +49,15 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
 }
 
+/**
+	Adds new fan to _fans and sends 201 Created response to the client with JSON
+	body. If fan cannot be added, sends 400 Bad request response to the client.
+	Pin-parameter is mandatory, frequency and dutycycle are optional.
+	Default values are defined in Fan.hpp.
+
+	@param client: Client to which the response is sent
+	@param request: First line of a HTTP-request
+*/
 void FanServer::addFan(EthernetClient& client, const String& request)
 {
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
@@ -63,6 +78,13 @@ void FanServer::addFan(EthernetClient& client, const String& request)
 	}
 }
 
+/**
+	Removes fan from _fans and sends 204 No content response to the client.
+	If specified fan is not found or cannot be removed, sends 400 Bad request response to the client.
+
+	@param client: Client to which the response is sent
+	@param request: First line of a HTTP-request
+*/
 void FanServer::removeFan(EthernetClient& client, const String& request)
 {
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
@@ -72,6 +94,11 @@ void FanServer::removeFan(EthernetClient& client, const String& request)
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 }
 
+/**
+	Sends fan-information in JSON format to the client.
+
+	@param client: Client to which the response is sent
+*/
 void FanServer::sendFansJson(EthernetClient &client)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
@@ -86,6 +113,11 @@ void FanServer::sendFansJson(EthernetClient &client)
 	root.printTo(client);
 }
 
+/**
+	Sends list of free fan pins in JSON format to the client.
+
+	@param client: Client to which the response is sent
+*/
 void FanServer::sendFreePinsJson(EthernetClient &client)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
@@ -103,6 +135,14 @@ void FanServer::sendFreePinsJson(EthernetClient &client)
 	root.printTo(client);
 }
 
+/**
+	Sets frequency to a fan and sends 204 No content response to the client.
+	Pin number and new frequency must be specified in the request.
+	If frequency cannot be applied, 400 Bad request is sent to the client.
+
+	@param client: Client to which the response is sent
+	@param request: First line of a HTTP-request
+*/
 void FanServer::setFrequency(EthernetClient& client, const String& request)
 {
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
@@ -113,6 +153,14 @@ void FanServer::setFrequency(EthernetClient& client, const String& request)
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 }
 
+/**
+	Sets dutycycle to a fan and sends 204 No content response to the client.
+	Pin number and new dutycycle must be specified in the request.
+	If dutycycle cannot be applied, 400 Bad request is sent to the client.
+
+	@param client: Client to which the response is sent
+	@param request: First line of a HTTP-request
+*/
 void FanServer::setDutyCycle(EthernetClient& client, const String& request)
 {
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
@@ -124,6 +172,12 @@ void FanServer::setDutyCycle(EthernetClient& client, const String& request)
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 }
 
+/**
+	Finds index of a fan in _fans.
+
+	@param pin: number of a fan pin
+	@return Index of o pin. If no fan is found, returns -1.
+*/
 int FanServer::findIndex(int pin)
 {
 	for (int i=0; i<_fanCount; i++) {
@@ -134,6 +188,12 @@ int FanServer::findIndex(int pin)
 	return -1;
 }
 
+/**
+	Finds fan from _fans.
+
+	@param pin: nmumber of a fan pin
+	@return Fan*, if no fan is found returns nullptr.
+*/
 Fan* FanServer::findFan(int pin)
 {
 	int index = findIndex(pin);
@@ -143,6 +203,12 @@ Fan* FanServer::findFan(int pin)
 	return nullptr;
 }
 
+/**
+	Checks if fan pin is already in use.
+
+	@param pin: Pin number to be checked
+	@return True if fan pin is free to use, otherwise False
+*/
 bool FanServer::isfreePin(int pin)
 {
 	for (int allowedPin : _allowedFanPins) {
@@ -156,13 +222,27 @@ bool FanServer::isfreePin(int pin)
 	return false;
 }
 
-void FanServer::getFanJson(Fan& fan, JsonObject &fanObject)
+/**
+	Adds fan information to JsonObject.
+
+	@param fan: desired fan to extract the information from
+	@param outFanJsonObject: Object where the fan information is stored
+*/
+void FanServer::getFanJson(Fan& fan, JsonObject &outFanJsonObject)
 {
-	fanObject[PIN_PARAMETER] = fan.getPin();
-	fanObject[FREQUENCY_PARAMETER] = fan.getFrequency();
-	fanObject[DUTYCYCLE_PARAMETER] = fan.getDutycycle();
+	outFanJsonObject[PIN_PARAMETER] = fan.getPin();
+	outFanJsonObject[FREQUENCY_PARAMETER] = fan.getFrequency();
+	outFanJsonObject[DUTYCYCLE_PARAMETER] = fan.getDutycycle();
 }
 
+/**
+	Creates new fan and adds it to _fans.
+
+	@param pin: Pin number of the fan
+	@param frequency: Frequency to the new fan, Min and Max frequency specified in Fan.hpp
+	@param dutycycle: dutyCycle to the new fan, 0 <= dutyCycle <= 100
+	@return True if addition was successful, otherwise False.
+*/
 bool FanServer::addFan(int pin, int frequency, int dutyCycle)
 {
 	if (_fanCount < MAX_FAN_COUNT && isfreePin(pin) && SetPinFrequencySafe(pin, frequency)) {
@@ -174,6 +254,12 @@ bool FanServer::addFan(int pin, int frequency, int dutyCycle)
 	return false;
 }
 
+/**
+	Removes fan from _fans and calls the destructor.
+
+	@param pin: Pin number from fan to be removed
+	@return True if removing the fan was succesful, otherwise False
+*/
 bool FanServer::removeFan(int pin)
 {
 	int index = findIndex(pin);
@@ -193,6 +279,14 @@ bool FanServer::removeFan(int pin)
 	return false;
 }
 
+/**
+	Sets new frequency to fan specified.
+
+	@param pin: Pin number of a fan
+	@param frequency: new frequency
+	@return True if the frequency was successfully changed.
+		If not succesful or no fan found, returns false.
+*/
 bool FanServer::setFrequency(int pin, int frequency)
 {
 	Fan* fan = findFan(pin);
@@ -202,6 +296,14 @@ bool FanServer::setFrequency(int pin, int frequency)
 	return false;
 }
 
+/**
+	Sets new dutycycle to fan specified.
+
+	@param pin: Pin number of a fan
+	@param dutyCycle: new dutyCycle
+	@return True if the dutycycle was successfully changed.
+		If not succesful or no fan found, returns false.
+*/
 bool FanServer::setDutyCycle(int pin, int dutyCycle)
 {
 	Fan* fan = findFan(pin);

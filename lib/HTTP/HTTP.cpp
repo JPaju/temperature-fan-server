@@ -12,6 +12,12 @@
 #define HTTP_NOT_FOUND F("HTTP/1.1 404 Not Found\r\n Content-Type: text/html \r\nConnection: Closed \r\n\r\n{ \"error\" : \"Path not found\" }\r\n")
 
 
+/**
+	Sends HTTP 1.1-response to client.
+
+	@param client: Client whom the response is sent to
+	@param type: HTTP-response type
+*/
 void HTTP::sendHttpResponse(EthernetClient& client, HTTPResponseType type) {
 	switch (type) {
 		case HTTPResponseType::HTTP_200_OK:
@@ -32,7 +38,18 @@ void HTTP::sendHttpResponse(EthernetClient& client, HTTPResponseType type) {
 	}
 }
 
+/**
+	Finds a parameter int value from a first line of a HTTP-request.
 
+	@param request: String from which the parameter is parsed from
+	@param parameter: String that specifies the parameter to search
+	@return Value of the parameter. If no parameter found, returns -1.
+
+	Example:
+	request = "GET /example?foo=1&bar=2 HTTP/1.1"
+	parameter = "bar"
+	returns: 2
+*/
 int HTTP::parseRequestParameterIntValue(const String &request, const String &parameter) {
 	int parameterStartIndex = request.indexOf(parameter, request.indexOf("?"));
 	int valueStartIndex = parameterStartIndex + parameter.length();
@@ -51,7 +68,8 @@ int HTTP::parseRequestParameterIntValue(const String &request, const String &par
 		}
 		int returnValue = request.substring(valueStartIndex, valueEndIndex).toInt();
 
-		//Check that returnValue is actually zero and not just invalid conversion from String.toInt() (returns 0 if value invalid)
+		//Check that return value is actually zero and not
+		//just invalid conversion from String.toInt() (returns 0 if value invalid)
 		if (returnValue == 0 && ((valueEndIndex - valueStartIndex != 1) || (request.charAt(valueStartIndex) != '0')))
 			returnValue = -1;
 		return returnValue;
@@ -59,6 +77,18 @@ int HTTP::parseRequestParameterIntValue(const String &request, const String &par
 	return -1;
 }
 
+/**
+	Parses a path from a first line of a HTTP-request.
+
+	@param request: String from which the path is parsed from
+	@param pathDepth:
+	@return Path as a String. If no path is found at specified depth, empty String is returned.
+
+	Example:
+	request = "GET /example/foo/bar HTTP/1.1"
+	pathDepth = 2
+	returns "foo"
+*/
 String HTTP::parseRequestPath(const String &request, int pathDepth) {
 	int pathStartIndex = 0, pathEndIndex = 0;
 	for (int i=0; i<pathDepth; i++) {
@@ -79,6 +109,12 @@ String HTTP::parseRequestPath(const String &request, int pathDepth) {
 	return request.substring(pathStartIndex, pathEndIndex);
 }
 
+/**
+	Parses the HTTP-method from a HTTP-request.
+
+	@param request: String containing first line of a HTTP-request
+	@return HTTPMethod-enum. If no method is recognized, HTTPMethod::UNKNOWN is returned.
+*/
 HTTPMethod HTTP::getRequestMethod(const String &request) {
 	String method = request.substring(0, request.indexOf(' '));
 

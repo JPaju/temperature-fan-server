@@ -12,13 +12,21 @@ Fan::~Fan()
 	setDutyCycle(0);
 }
 
+/**
+	Initalizes fan pin frequency and dutycycle.
+*/
 void Fan::init()
 {
 	setFrequency(_frequency);
 	setDutyCycle(_dutyCycle);
 }
 
+/**
+	Sets new frequency. Checks validity of the new frequency first.
 
+	@param frequency: new frequency
+	@return True if the frequency was successfully changed, otherwise false.
+*/
 bool Fan::setFrequency(int frequency)
 {
 	if (frequency <= MAX_FREQUENCY && SetPinFrequencySafe(_pin, frequency)) {
@@ -28,6 +36,14 @@ bool Fan::setFrequency(int frequency)
 	return false;
 }
 
+/**
+	Sets new dutycycle. Checks validity of the new dutyucycle first.
+	If 0 < dutyCycle < MIN_DUTYCYCLE, _dutyCycle = MIN_DUTYCYCLE.
+
+
+	@param dutycycle: new dutycycle
+	@return True if the dutycycle was successfully changed, otherwise false.
+*/
 bool Fan::setDutyCycle(int dutyCycle)
 {
 	if (dutyCycle < 101 && dutyCycle > -1) {
