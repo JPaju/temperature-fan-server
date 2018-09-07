@@ -44,9 +44,9 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 	} else if (method == HTTPMethod::DELETE && path.length() == 0) {
 		return removeFan(client, request);
 	} else if (method == HTTPMethod::GET) {
-		if (path.length() == 0) return sendFansJson(client);
-		if (request.indexOf(FREE_PIN_ATTRIBUTE) != -1) return sendFreePinsJson(client);
-		if (request.indexOf(DEFAULTS_PARAMETER) != -1) return sendDefaultsJson(client);
+		if (path.length() == 0) return sendFansJson(client, request);
+		if (path.equals(FREE_PIN_ATTRIBUTE)) return sendFreePinsJson(client);
+		if (path.equals(DEFAULTS_PARAMETER)) return sendDefaultsJson(client);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
 }
@@ -73,7 +73,7 @@ void FanServer::addFan(EthernetClient& client, const String& request)
 		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 		JsonObject& root = jsonBuffer.createObject();
 		JsonArray& data = root.createNestedArray(F("data"));
-		getFanJson((*(findFan(pin))), data.createNestedObject());
+		addFanInfoToJsonObj((*(findFan(pin))), data.createNestedObject());
 		root.printTo(client);
 	} else {
 		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
@@ -100,17 +100,28 @@ void FanServer::removeFan(EthernetClient& client, const String& request)
 	Sends fan-information in JSON format to the client.
 
 	@param client: Client to which the response is sent
+	@param request: First line of a HTTP-request
 */
-void FanServer::sendFansJson(EthernetClient &client)
+void FanServer::sendFansJson(EthernetClient &client, const String& request)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
 	JsonObject& data = root.createNestedObject((F("data")));
-	JsonArray& fans = data.createNestedArray(FANS_ATTRIBUTE);
 
-	for (int i=0; i<_fanCount; i++) {
-		getFanJson(_fans[i], fans.createNestedObject());
+	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
+	if (pin > 0) {
+		//Single fan
+		Fan* fan = findFan(pin);
+		if (fan) addFanInfoToJsonObj(*fan, data.createNestedObject(F("fan")));
+		else return HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
+	} else {
+		JsonArray& fans = data.createNestedArray(FANS_ATTRIBUTE);
+		//All the fans
+		for (int i=0; i<_fanCount; i++) {
+			addFanInfoToJsonObj(_fans[i], fans.createNestedObject());
+		}
 	}
+
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
 	root.printTo(client);
 }
@@ -251,7 +262,7 @@ bool FanServer::isfreePin(int pin)
 	@param fan: desired fan to extract the information from
 	@param outFanJsonObject: Object where the fan information is stored
 */
-void FanServer::getFanJson(Fan& fan, JsonObject &outFanJsonObject)
+void FanServer::addFanInfoToJsonObj(Fan& fan, JsonObject &outFanJsonObject)
 {
 	outFanJsonObject[PIN_PARAMETER] = fan.getPin();
 	outFanJsonObject[FREQUENCY_PARAMETER] = fan.getFrequency();

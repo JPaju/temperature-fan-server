@@ -20,7 +20,7 @@ public:
 
 	void addFan(EthernetClient& client, const String& request);
 	void removeFan(EthernetClient& client, const String& request);
-	void sendFansJson(EthernetClient& client);
+	void sendFansJson(EthernetClient& client, const String& request);
 	void sendFreePinsJson(EthernetClient& client);
 	void sendDefaultsJson(EthernetClient& client);
 	void setFrequency(EthernetClient& client, const String& request);
@@ -35,7 +35,7 @@ private:
 	Fan* findFan(int pin);
 	bool isfreePin(int pin);
 
-	void getFanJson(Fan& fan, JsonObject& outObject);
+	void addFanInfoToJsonObj(Fan& fan, JsonObject& outObject);
 	bool addFan(int pin, int frequency = DEFAULT_FREQUENCY, int dutyCycle = DEFAULT_DUTYCYCLE);
 	bool removeFan(int pin);
 	bool setFrequency(int pin, int frequency);
