@@ -8,7 +8,9 @@
 #define FREQUENCY_PARAMETER F("frequency")
 #define DUTYCYCLE_PARAMETER F("dutycycle")
 #define FANS_ATTRIBUTE F("fans")
+#define PIN_ATTRIBUTE F("pins")
 #define FREE_PIN_ATTRIBUTE F("freepins")
+#define FANPINS_ATTRIBUTE F("fanpins")
 #define DEFAULTS_PARAMETER F("defaults")
 
 
@@ -45,7 +47,8 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 		return removeFan(client, request);
 	} else if (method == HTTPMethod::GET) {
 		if (path.length() == 0) return sendFansJson(client, request);
-		if (path.equals(FREE_PIN_ATTRIBUTE)) return sendFreePinsJson(client);
+		if (path.equals(FREE_PIN_ATTRIBUTE)) return sendPinsJson(client);
+		if (path.equals(FANPINS_ATTRIBUTE)) return sendPinsJson(client, false);
 		if (path.equals(DEFAULTS_PARAMETER)) return sendDefaultsJson(client);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
@@ -127,21 +130,24 @@ void FanServer::sendFansJson(EthernetClient &client, const String& request)
 }
 
 /**
-	Sends list of free fan pins in JSON format to the client.
+	Sends list of pins in JSON format to the client. FreePinsMode sends all
+	fan pins, otherwise only sends fan pins that are not in use.
+	Default is freepins mode.
 
 	@param client: Client to which the response is sent
+	@param freePinsMode: Boolean that switches between freepins and fanpin modes,
+		default = true
 */
-void FanServer::sendFreePinsJson(EthernetClient &client)
+void FanServer::sendPinsJson(EthernetClient &client, bool freePinsMode)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
 	JsonObject& data = root.createNestedObject((F("data")));
-	JsonArray& freePins = data.createNestedArray(FREE_PIN_ATTRIBUTE);
+	JsonArray& freePins = data.createNestedArray(PIN_ATTRIBUTE);
 
-	for (int allowedPin : _allowedFanPins) {
-		if (isfreePin(allowedPin)) {
-			freePins.add(allowedPin);
-		}
+	for (int pin : _allowedFanPins) {
+		if (freePinsMode && !isfreePin(pin)) continue;
+		freePins.add(pin);
 	}
 
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);

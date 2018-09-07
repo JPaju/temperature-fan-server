@@ -30,7 +30,7 @@
 
 ### Search for new temperature sensors
 
-**Definiton**
+**Definition**
 
 `PUT /temperatures/updatesensors`
 
@@ -110,6 +110,27 @@ Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
 }
 ```
 
+### List all fan pins
+
+**Definition**
+
+`GET /fans/fanpins`
+
+**Response**
+
+- `200 OK`
+```json
+{
+    "data": {
+        "pins": [
+            3,
+            9,
+            10
+        ]
+    }
+}
+```
+
 ### List free fan pins
 
 **Definition**
@@ -122,14 +143,13 @@ Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
 ```json
 {
     "data": {
-        "freepins": [
+        "pins": [
             9,
             10
         ]
     }
 }
 ```
-
 ### List default values
 
 **Definition**
