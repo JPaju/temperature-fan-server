@@ -1,6 +1,8 @@
 # TempServer
 
- ### List all temperatures
+## Usage
+
+### List all temperatures
 
 **Definition**
 
@@ -51,6 +53,8 @@
 
 Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
 
+## Usage
+
 ### List all active fans
 
 **Definition**
@@ -76,6 +80,33 @@ Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
             }
         ]
     }
+}
+```
+
+### List single fan
+
+**Definition**
+
+`GET /fans?pin=<pin>`
+
+**Response**
+
+- `200 OK` on success
+```json
+{
+    "data": {
+        "fan": {
+            "pin": 3,
+            "frequency": 25000,
+            "dutycycle": 15
+        }
+    }
+}
+```
+- `400 Bad request` on failure
+```json
+{
+    "error": "Missing or invalid Parameters"
 }
 ```
 
