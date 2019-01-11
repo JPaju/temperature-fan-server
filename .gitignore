@@ -3,6 +3,4 @@
 .clang_complete
 .gcc-flags.json
 readme.txt
-.travis.yml
-platformio.ini
 *example/
