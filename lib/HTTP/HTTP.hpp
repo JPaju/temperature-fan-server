@@ -1,5 +1,5 @@
 #ifndef HTTP_h
-#define HttpRequestHandler_h
+#define HTTP_h
 
 #include <EthernetClient.h>
 
