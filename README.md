@@ -12,20 +12,16 @@
 
 - `200 OK`
 ```json
-{
-    "data": {
-        "tempsensors": [
-            {
-                "id": "286D68D500000000",
-                "temperature": 29
-            },
-			{
-                "id": "286D68D600000000",
-                "temperature": 37
-            }
-        ]
-    }
-}
+[
+  {
+    "id": "286D68D500000000",
+    "temperature": 29
+  },
+  {
+    "id": "286D68D600000000",
+    "temperature": 37
+  }
+]
 ```
 
 ### Search for new temperature sensors
@@ -65,22 +61,18 @@ Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
 
 - `200 OK`
 ```json
-{
-    "data": {
-        "fans": [
-            {
-                "pin": 3,
-                "frequency": 25000,
-                "dutycycle": 15
-            },
-			{
-                "pin": 9,
-                "frequency": 13000,
-                "dutycycle": 80
-            }
-        ]
-    }
-}
+[
+  {
+    "pin": 3,
+    "frequency": 25000,
+    "dutycycle": 15
+  },
+  {
+    "pin": 9,
+    "frequency": 13000,
+    "dutycycle": 80
+  }
+]
 ```
 
 ### List single fan
@@ -94,82 +86,39 @@ Fan speed (dutycycle) range from 0 to 100%. Dutycycle frequency is in Hz.
 - `200 OK` on success
 ```json
 {
-    "data": {
-        "fan": {
-            "pin": 3,
-            "frequency": 25000,
-            "dutycycle": 15
-        }
-    }
+  "pin": 3,
+  "frequency": 25000,
+  "dutycycle": 15
 }
 ```
 - `400 Bad request` on failure
 ```json
 {
-    "error": "Missing or invalid Parameters"
+  "error": "Missing or invalid Parameters"
 }
 ```
 
-### List all fan pins
+### List config
 
 **Definition**
 
-`GET /fans/fanpins`
+`GET /fans/config`
 
 **Response**
 
 - `200 OK`
 ```json
 {
-    "data": {
-        "pins": [
-            3,
-            9,
-            10
-        ]
-    }
-}
-```
-
-### List free fan pins
-
-**Definition**
-
-`GET /fans/freepins`
-
-**Response**
-
-- `200 OK`
-```json
-{
-    "data": {
-        "pins": [
-            9,
-            10
-        ]
-    }
-}
-```
-### List default values
-
-**Definition**
-
-`GET /fans/defaults`
-
-**Response**
-
-- `200 OK`
-```json
-{
-    "data": {
-        "defaults": {
-            "dutycycle": 15,
-            "frecuency": 25000,
-            "min dutycycle": 15,
-            "min frequency": 20,
-            "max frequency": 32767
-        }
-    }
+  "defaults": {
+    "dutycycle": 15,
+    "frecuency": 25000,
+  },
+  "limits": {
+    "min dutycycle": 15,
+    "min frequency": 20,
+    "max frequency": 32767  
+  },
+  "fanpins": [3, 9, 10]
 }
 ```
 
@@ -186,19 +135,15 @@ Only pin number is required, frequency and dutycycle are optional parameters. If
 - `201 Created` on success
 ```json
 {
-    "data": [
-        {
-            "pin": 3,
-            "frequency": 25000,
-            "dutycycle": 15
-        }
-    ]
+  "pin": 3,
+  "frequency": 25000,
+  "dutycycle": 15
 }
 ```
 - `400 Bad request` on failure
 ```json
 {
-    "error": "Missing or invalid Parameters"
+  "error": "Missing or invalid Parameters"
 }
 ```
 
@@ -214,7 +159,7 @@ Only pin number is required, frequency and dutycycle are optional parameters. If
 - `400 Bad request` on failure
 ```json
 {
-    "error": "Missing or invalid Parameters"
+  "error": "Missing or invalid Parameters"
 }
 ```
 
@@ -222,30 +167,23 @@ Only pin number is required, frequency and dutycycle are optional parameters. If
 
 **Definition**
 
-`PUT /fans?pin=<pin>&dutycycle=<dutycycle>`
+`PUT /fans?pin=<pin>&dutycycle=<dutycycle>&frequency=<frequency>`
+
+Not both dutycycle and frequency are required.
 
 **Response**
 
-- `204 No Content` on success
-- `400 Bad request` on failure
+- `200 OK` on success
 ```json
 {
-    "error": "Missing or invalid Parameters"
+  "pin": 3,
+  "frequency": 25000,
+  "dutycycle": 15
 }
 ```
-
-### Change fan's Frequency
-
-**Definition**
-
-`PUT /fans?pin=<pin>&frequency=<frequency>`
-
-**Response**
-
-- `204 No Content` on success
 - `400 Bad request` on failure
 ```json
 {
-    "error": "Missing or invalid Parameters"
+  "error": "Missing or invalid Parameters"
 }
 ```
