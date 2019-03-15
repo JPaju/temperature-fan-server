@@ -107,25 +107,32 @@ void FanServer::removeFan(EthernetClient& client, const String& request)
 void FanServer::sendFansJson(EthernetClient &client, const String& request)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-	JsonObject& root = jsonBuffer.createObject();
-	JsonObject& data = root.createNestedObject((F("data")));
 
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
+
 	if (pin > 0) {
 		//Single fan
 		Fan* fan = findFan(pin);
-		if (fan) addFanInfoToJsonObj(*fan, data.createNestedObject(F("fan")));
-		else return HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
-	} else {
-		JsonArray& fans = data.createNestedArray(FANS_ATTRIBUTE);
-		//All the fans
-		for (int i=0; i<_fanCount; i++) {
-			addFanInfoToJsonObj(_fans[i], fans.createNestedObject());
-		}
-	}
+		if (fan) {
+			JsonObject& fanObj = jsonBuffer.createObject();
+			addFanInfoToJsonObj(*fan, fanObj);
 
-	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
-	root.printTo(client);
+			HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
+			fanObj.printTo(client);
+		} else {
+			return HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
+		}
+	} else {
+		//All the fans
+		JsonArray& root = jsonBuffer.createArray();
+
+		for (int i=0; i<_fanCount; i++) {
+			addFanInfoToJsonObj(_fans[i], root.createNestedObject());
+		}
+
+		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
+		root.printTo(client);
+	}
 }
 
 /**
