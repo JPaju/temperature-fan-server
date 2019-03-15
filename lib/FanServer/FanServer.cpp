@@ -68,18 +68,32 @@ void FanServer::addFan(EthernetClient& client, const String& request)
 	int frequency = HTTP::parseRequestParameterIntValue(request, FREQUENCY_PARAMETER);
 	int dutyCycle = HTTP::parseRequestParameterIntValue(request, DUTYCYCLE_PARAMETER);
 
-	if (addFan(pin)) {
+	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+	JsonObject& fanObj = jsonBuffer.createObject();
+
+	Fan* fan = findFan(pin);
+
+	// Check if fan has already exists
+	if (fan) {
+		if (frequency > 0) setFrequency(pin, frequency);
+		if (dutyCycle > 0) setDutyCycle(pin, dutyCycle);
+		
+		addFanInfoToJsonObj((*fan), fanObj);
+
+	// Create fan if it doesn't exist
+	} else if (addFan(pin)) {
 		setFrequency(pin, frequency);
 		setDutyCycle(pin, dutyCycle);
-		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_201_CREATED);
-		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-		JsonObject& root = jsonBuffer.createObject();
-		JsonArray& data = root.createNestedArray(F("data"));
-		addFanInfoToJsonObj((*(findFan(pin))), data.createNestedObject());
-		root.printTo(client);
+		addFanInfoToJsonObj((*(findFan(pin))), fanObj);
+
+	// If creation fails, send error and return
 	} else {
 		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
+		return;
 	}
+
+	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_201_CREATED);
+	fanObj.printTo(client);
 }
 
 /**
