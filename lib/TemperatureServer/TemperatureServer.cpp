@@ -65,12 +65,10 @@ void TemperatureServer::getTemperatures(EthernetClient& client)
 {
 	updateTemperatures();
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-	JsonObject& root = jsonBuffer.createObject();
-	JsonObject& data = root.createNestedObject(F("data"));
-	JsonArray& tempSensors = data.createNestedArray(F("tempsensors"));
+	JsonArray& root = jsonBuffer.createArray();
 
 	for (int i=0; i<sensors.getDeviceCount(); i++) {
-		JsonObject& tempSensor = tempSensors.createNestedObject();
+		JsonObject& tempSensor = root.createNestedObject();
 		char id[64] = "";
 		getID(i, id);
 		tempSensor[ID_ATTRIBUTE] = id;
