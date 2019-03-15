@@ -8,6 +8,7 @@
 #include <ArduinoJson.h>
 #include "ArduinoServerInterface.hpp"
 #include "Fan.hpp"
+#include "HTTP.hpp"
 
 
 class FanServer : public ArduinoServerInterface
@@ -21,9 +22,9 @@ public:
 	void addFan(EthernetClient& client, const String& request);
 	void removeFan(EthernetClient& client, const String& request);
 	void sendFansJson(EthernetClient& client, const String& request);
+	void sendSingleFan(EthernetClient& client, int pin, HTTPResponseType responseType);
 	void sendConfigJson(EthernetClient& client);
-	void setFrequency(EthernetClient& client, const String& request);
-	void setDutyCycle(EthernetClient& client, const String& request);
+	void setFanProperties(EthernetClient& client, const String& request);
 
 private:
 	Fan _fans[MAX_FAN_COUNT];

@@ -7,12 +7,10 @@
 #define PIN_PARAMETER F("pin")
 #define FREQUENCY_PARAMETER F("frequency")
 #define DUTYCYCLE_PARAMETER F("dutycycle")
-#define FANS_ATTRIBUTE F("fans")
-#define PIN_ATTRIBUTE F("pins")
 #define CONFIG_PARAMETER F("config")
-#define LIMITS_PARAMETER F("limits")
-#define DEFAULTS_PARAMETER F("defaults")
-#define FANPINS_PARAMETER F("fanpins")
+#define LIMITS_ATTRIBUTE F("limits")
+#define DEFAULTS_ATTRIBUTE F("defaults")
+#define FANPINS_ATTRIBUTE F("fanpins")
 
 
 FanServer::FanServer()
@@ -40,8 +38,7 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 	HTTPMethod method = HTTP::getRequestMethod(request);
 
 	if (method == HTTPMethod::PUT) {
-		if (request.indexOf(FREQUENCY_PARAMETER) != -1) return setFrequency(client, request);
-		if (request.indexOf(DUTYCYCLE_PARAMETER) != -1) return setDutyCycle(client, request);
+		return setFanProperties(client, request);
 	} else if (method == HTTPMethod::POST && path.length() == 0) {
 		return addFan(client, request);
 	} else if (method == HTTPMethod::DELETE && path.length() == 0) {
@@ -68,32 +65,16 @@ void FanServer::addFan(EthernetClient& client, const String& request)
 	int frequency = HTTP::parseRequestParameterIntValue(request, FREQUENCY_PARAMETER);
 	int dutyCycle = HTTP::parseRequestParameterIntValue(request, DUTYCYCLE_PARAMETER);
 
-	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-	JsonObject& fanObj = jsonBuffer.createObject();
-
-	Fan* fan = findFan(pin);
-
-	// Check if fan has already exists
-	if (fan) {
-		if (frequency > 0) setFrequency(pin, frequency);
-		if (dutyCycle > 0) setDutyCycle(pin, dutyCycle);
-		
-		addFanInfoToJsonObj((*fan), fanObj);
-
-	// Create fan if it doesn't exist
-	} else if (addFan(pin)) {
-		setFrequency(pin, frequency);
-		setDutyCycle(pin, dutyCycle);
-		addFanInfoToJsonObj((*(findFan(pin))), fanObj);
-
-	// If creation fails, send error and return
-	} else {
+	// If fan doesn't exists and adding new fan fails, send error message and return
+	if (!findFan(pin) && !addFan(pin)) {
 		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 		return;
 	}
 
-	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_201_CREATED);
-	fanObj.printTo(client);
+	setFrequency(pin, frequency);
+	setDutyCycle(pin, dutyCycle);
+
+	sendSingleFan(client, pin, HTTPResponseType::HTTP_201_CREATED);
 }
 
 /**
@@ -113,31 +94,19 @@ void FanServer::removeFan(EthernetClient& client, const String& request)
 }
 
 /**
-	Sends fan-information in JSON format to the client.
+	Sends fan-information of all fans in JSON format to the client.
 
 	@param client: Client to which the response is sent
 	@param request: First line of a HTTP-request
 */
 void FanServer::sendFansJson(EthernetClient &client, const String& request)
 {
-	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
 
 	if (pin > 0) {
-		//Single fan
-		Fan* fan = findFan(pin);
-		if (fan) {
-			JsonObject& fanObj = jsonBuffer.createObject();
-			addFanInfoToJsonObj(*fan, fanObj);
-
-			HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
-			fanObj.printTo(client);
-		} else {
-			return HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
-		}
+		sendSingleFan(client, pin, HTTPResponseType::HTTP_200_OK);
 	} else {
-		//All the fans
+		StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 		JsonArray& root = jsonBuffer.createArray();
 
 		for (int i=0; i<_fanCount; i++) {
@@ -146,6 +115,30 @@ void FanServer::sendFansJson(EthernetClient &client, const String& request)
 
 		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
 		root.printTo(client);
+	}
+}
+
+/**
+	Sends fan-information in JSON format to the client.
+	If fan is not found, sends HTTP 400 Bad Request.
+
+	@param client: Client to which the response is sent
+	@param responseType: Response-code sent to client if fan is found
+	@param pin: Pin number of the fan
+*/
+void FanServer::sendSingleFan(EthernetClient& client, int pin, HTTPResponseType responseType)
+{
+	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
+
+	Fan* fan = findFan(pin);
+	if (fan) {
+		JsonObject& fanObj = jsonBuffer.createObject();
+		addFanInfoToJsonObj(*fan, fanObj);
+
+		HTTP::sendHttpResponse(client, responseType);
+		fanObj.printTo(client);
+	} else {
+		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
 	}
 }
 
@@ -160,9 +153,9 @@ void FanServer::sendConfigJson(EthernetClient &client)
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
 
-	JsonObject& limits = root.createNestedObject(LIMITS_PARAMETER);
-	JsonObject& defaults = root.createNestedObject(DEFAULTS_PARAMETER);
-	JsonArray& fanPins = root.createNestedArray(FANPINS_PARAMETER);
+	JsonObject& limits = root.createNestedObject(LIMITS_ATTRIBUTE);
+	JsonObject& defaults = root.createNestedObject(DEFAULTS_ATTRIBUTE);
+	JsonArray& fanPins = root.createNestedArray(FANPINS_ATTRIBUTE);
 
 	defaults[F("dutycycle")] = DEFAULT_DUTYCYCLE;
 	defaults[F("frequency")] = DEFAULT_FREQUENCY;
@@ -180,24 +173,6 @@ void FanServer::sendConfigJson(EthernetClient &client)
 }
 
 /**
-	Sets frequency to a fan and sends 204 No content response to the client.
-	Pin number and new frequency must be specified in the request.
-	If frequency cannot be applied, 400 Bad request is sent to the client.
-
-	@param client: Client to which the response is sent
-	@param request: First line of a HTTP-request
-*/
-void FanServer::setFrequency(EthernetClient& client, const String& request)
-{
-	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
-	int frequency = HTTP::parseRequestParameterIntValue(request, FREQUENCY_PARAMETER);
-	if (setFrequency(pin, frequency)) {
-		return HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_204_NO_CONTENT);
-	}
-	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
-}
-
-/**
 	Sets dutycycle to a fan and sends 204 No content response to the client.
 	Pin number and new dutycycle must be specified in the request.
 	If dutycycle cannot be applied, 400 Bad request is sent to the client.
@@ -205,15 +180,22 @@ void FanServer::setFrequency(EthernetClient& client, const String& request)
 	@param client: Client to which the response is sent
 	@param request: First line of a HTTP-request
 */
-void FanServer::setDutyCycle(EthernetClient& client, const String& request)
+void FanServer::setFanProperties(EthernetClient& client, const String& request)
 {
 	int pin = HTTP::parseRequestParameterIntValue(request, PIN_PARAMETER);
-	int dutyCycle = HTTP::parseRequestParameterIntValue(request, DUTYCYCLE_PARAMETER);
 
-	if (setDutyCycle(pin, dutyCycle)) {
-		return HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_204_NO_CONTENT);
+	if (findIndex(pin) < 0) {
+		HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
+		return;
 	}
-	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_400_BAD_REQUEST);
+
+	int dutyCycle = HTTP::parseRequestParameterIntValue(request, DUTYCYCLE_PARAMETER);
+	int frequency = HTTP::parseRequestParameterIntValue(request, FREQUENCY_PARAMETER);
+
+	setDutyCycle(pin, dutyCycle);
+	setFrequency(pin, frequency);
+
+	sendSingleFan(client, pin, HTTPResponseType::HTTP_200_OK);
 }
 
 /**
