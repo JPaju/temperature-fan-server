@@ -9,9 +9,10 @@
 #define DUTYCYCLE_PARAMETER F("dutycycle")
 #define FANS_ATTRIBUTE F("fans")
 #define PIN_ATTRIBUTE F("pins")
-#define FREE_PIN_ATTRIBUTE F("freepins")
-#define FANPINS_ATTRIBUTE F("fanpins")
+#define CONFIG_PARAMETER F("config")
+#define LIMITS_PARAMETER F("limits")
 #define DEFAULTS_PARAMETER F("defaults")
+#define FANPINS_PARAMETER F("fanpins")
 
 
 FanServer::FanServer()
@@ -47,9 +48,7 @@ void FanServer::handleRequest(const String& request, EthernetClient& client)
 		return removeFan(client, request);
 	} else if (method == HTTPMethod::GET) {
 		if (path.length() == 0) return sendFansJson(client, request);
-		if (path.equals(FREE_PIN_ATTRIBUTE)) return sendPinsJson(client);
-		if (path.equals(FANPINS_ATTRIBUTE)) return sendPinsJson(client, false);
-		if (path.equals(DEFAULTS_PARAMETER)) return sendDefaultsJson(client);
+		if (path.equals(CONFIG_PARAMETER)) return sendConfigJson(client);
 	}
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_404_NOT_FOUND);
 }
@@ -130,46 +129,30 @@ void FanServer::sendFansJson(EthernetClient &client, const String& request)
 }
 
 /**
-	Sends list of pins in JSON format to the client. FreePinsMode sends all
-	fan pins, otherwise only sends fan pins that are not in use.
-	Default is freepins mode.
+	Sends all config information: defaults, limits, minimum and maximum value
+	for fans in JSON format to the client.
 
 	@param client: Client to which the response is sent
-	@param freePinsMode: Boolean that switches between freepins and fanpin modes,
-		default = true
 */
-void FanServer::sendPinsJson(EthernetClient &client, bool freePinsMode)
+void FanServer::sendConfigJson(EthernetClient &client)
 {
 	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
-	JsonObject& data = root.createNestedObject((F("data")));
-	JsonArray& freePins = data.createNestedArray(PIN_ATTRIBUTE);
+
+	JsonObject& limits = root.createNestedObject(LIMITS_PARAMETER);
+	JsonObject& defaults = root.createNestedObject(DEFAULTS_PARAMETER);
+	JsonArray& fanPins = root.createNestedArray(FANPINS_PARAMETER);
+
+	defaults[F("dutycycle")] = DEFAULT_DUTYCYCLE;
+	defaults[F("frequency")] = DEFAULT_FREQUENCY;
+
+	limits[F("min dutycycle")] = MIN_DUTYCYCLE;
+	limits[F("min frequency")] = MIN_FREQUENCY;
+	limits[F("max frequency")] = MAX_FREQUENCY;
 
 	for (int pin : _allowedFanPins) {
-		if (freePinsMode && !isfreePin(pin)) continue;
-		freePins.add(pin);
+		fanPins.add(pin);
 	}
-
-	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
-	root.printTo(client);
-}
-
-/**
-	Sends default, minimum and maximum values for fans in JSON format to the client.
-
-	@param client: Client to which the response is sent
-*/
-void FanServer::sendDefaultsJson(EthernetClient &client)
-{
-	StaticJsonBuffer<JSON_BUFFER_SIZE> jsonBuffer;
-	JsonObject& root = jsonBuffer.createObject();
-	JsonObject& data = root.createNestedObject((F("data")));
-	JsonObject& defaults = data.createNestedObject(DEFAULTS_PARAMETER);
-	defaults[F("dutycycle")] = DEFAULT_DUTYCYCLE;
-	defaults[F("frecuency")] = DEFAULT_FREQUENCY;
-	defaults[F("min dutycycle")] = MIN_DUTYCYCLE;
-	defaults[F("min frequency")] = MIN_FREQUENCY;
-	defaults[F("max frequency")] = MAX_FREQUENCY;
 
 	HTTP::sendHttpResponse(client, HTTPResponseType::HTTP_200_OK);
 	root.printTo(client);

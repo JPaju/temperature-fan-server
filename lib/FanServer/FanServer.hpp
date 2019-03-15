@@ -21,8 +21,7 @@ public:
 	void addFan(EthernetClient& client, const String& request);
 	void removeFan(EthernetClient& client, const String& request);
 	void sendFansJson(EthernetClient& client, const String& request);
-	void sendPinsJson(EthernetClient& client, bool freePinsMode = true);
-	void sendDefaultsJson(EthernetClient& client);
+	void sendConfigJson(EthernetClient& client);
 	void setFrequency(EthernetClient& client, const String& request);
 	void setDutyCycle(EthernetClient& client, const String& request);
 
